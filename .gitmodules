@@ -1,0 +1,6 @@
+[submodule "models/stable-fast-3d"]
+	path = models/stable-fast-3d
+	url = https://github.com/vantemoon/stable-fast-3d.git
+[submodule "models/MaterialSeg3D"]
+	path = models/MaterialSeg3D
+	url = https://github.com/vantemoon/MaterialSeg3D.git
