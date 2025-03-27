@@ -26,7 +26,6 @@ function App() {
   const [ormImageUrl, setOrmImageUrl] = useState("");
 
 
-  // This state will automatically store the sample folder produced by /run_model.
   const [sampleFolder, setSampleFolder] = useState("");
 
   const canvasContainerRef = useRef(null);
@@ -200,7 +199,7 @@ function App() {
   const [displayData, setDisplayData] = useState(null); // { uv_image, mesh_path }
   const [renderViews, setRenderViews] = useState(null); // array of 5 base64 images
   const [segViews, setSegViews] = useState(null); // array of 5 base64 segmentation images
-  const [ormImage, setOrmImage] = useState(null);
+
   const secondCanvasRef = useRef(null);
   const secondRendererRef = useRef(null);
 
@@ -276,8 +275,7 @@ function App() {
       if (data.error) throw new Error(data.error);
       // Set the ORM image URL returned by the API.
       setOrmImageUrl(data.ORM_image_url);
-      // After obtaining the ORM image URL, re-render the white model with new material.
-      renderMaterialisedModel();
+      // The model will be re-rendered via the useEffect below when ormImageUrl updates.
     } catch (err) {
       console.error(err);
       alert("Error in materialisation: " + err.message);
@@ -317,8 +315,8 @@ function App() {
     loader.load(displayData.mesh_path, (gltf) => {
       const model = gltf.scene;
       // Load textures:
-      // - The albedo texture is taken from displayData.uv_image (should be a URL or data URI)
-      // - The ORM texture is now loaded from ormImageUrl (which is a URL)
+      // - The albedo texture is taken from displayData.uv_image (original albedo rgb uv)
+      // - The ORM texture is loaded from ormImageUrl (to derive metallic & roughness)
       const textureLoader = new THREE.TextureLoader();
       const albedoTexture = textureLoader.load(displayData.uv_image);
       const ormTexture = textureLoader.load(ormImageUrl);
@@ -335,6 +333,11 @@ function App() {
             shader.fragmentShader = shader.fragmentShader.replace(
               /texture2D\( metalnessMap, vUv \)\.b/g,
               'texture2D( metalnessMap, vUv ).r'
+            );
+            // For safety: enforce roughness to be taken from the green channel.
+            shader.fragmentShader = shader.fragmentShader.replace(
+              /texture2D\( roughnessMap, vUv \)\.r/g,
+              'texture2D( roughnessMap, vUv ).g'
             );
           };
         }
@@ -359,6 +362,13 @@ function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   };
+
+  // useEffect to re-render the materialised model when ormImageUrl or displayData changes.
+  useEffect(() => {
+    if (ormImageUrl && displayData) {
+      renderMaterialisedModel();
+    }
+  }, [ormImageUrl, displayData]);
   
   const handleDownload = () => {
     if (!sampleFolder) {
@@ -485,8 +495,8 @@ function App() {
         )}
         {renderViews && segViews && (
           <div style={{ marginTop: '20px' }}>
-          <button onClick={handleMaterialise}>Materialise</button>
-        </div>
+            <button onClick={handleMaterialise}>Materialise</button>
+          </div>
         )}
         {ormImageUrl && (
           <div style={{ marginTop: '20px' }}>
@@ -495,7 +505,7 @@ function App() {
           </div>
         )}
         <div ref={secondCanvasRef} style={{ width: '80vw', height: '60vh', border: '1px solid #ccc', margin: '20px auto' }} />
-        {ormImage && (
+        {ormImageUrl && (
           <div style={{ marginTop: '20px' }}>
             <button onClick={handleDownload}>Download All Generated Files</button>
           </div>
