@@ -215,16 +215,24 @@ function App() {
         body: JSON.stringify({ sample_folder: sampleFolder }),
       });
       const data = await response.json();
+      console.log("Display endpoint returned:", data);
       if (data.error) {
         alert("Error in display: " + data.error);
       } else {
-        setDisplayData(data); // data should contain { uv_image, mesh_path }
+        // Optionally, ensure the mesh_path is a full URL.
+        const fullMeshUrl = data.mesh_path.startsWith("http")
+          ? data.mesh_path
+          : "http://localhost:8080" + data.mesh_path;
+        setDisplayData({
+          uv_image: data.uv_image,
+          mesh_path: fullMeshUrl,
+        });
       }
     } catch (err) {
       console.error(err);
       alert("Error loading white model.");
     }
-  };
+  };  
 
   // Existing handleRender for rendering additional views and segmentation.
   const handleRender = async () => {
